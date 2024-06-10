@@ -1,4 +1,5 @@
 from .connection import get_db_connection
+import sqlite3
 
 def create_tables():
     conn = get_db_connection()
