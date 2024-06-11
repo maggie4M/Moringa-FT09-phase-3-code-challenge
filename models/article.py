@@ -1,58 +1,46 @@
-class Article:
-    def __init__(self, id, title, content, author_id, magazine_id):
-        self.id = id
-        self.title = title
-        self.content = content
-        self.author_id = author_id
-        self.magazine_id = magazine_id
+from database.connection import get_db_connection
+from.author import Author
+from.magazine import Magazine
 
-    @property
-    def id(self):
-        return self._id
+class Article:
+    def __init__(self, author, title, magazine):
+        if not isinstance(author, Author):
+            raise ValueError("author must be an instance of Author")
+        if not isinstance(magazine, Magazine):
+            raise ValueError("magazine must be an instance of Magazine")
+        if not (isinstance(title, str) and 5 <= len(title) <= 50):
+            raise ValueError("Title must be a string between 5 and 50 characters")
+
+        self._author_id = author.id
+        self._magazine_id = magazine.id
+        self._title = title
 
     @property
     def title(self):
         return self._title
 
-    @title.setter
-    def title(self, value):
-        if isinstance(value, str) and 5 <= len(value) <= 50:
-            self._title = value
-        else:
-            raise ValueError("Title must be a string between 5 and 50 characters")
+    def save(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO articles (author_id, magazine_id, title) VALUES (?,?,?)", (self._author_id, self._magazine_id, self._title))
+        conn.commit()
+        self._id = cursor.lastrowid
+        conn.close()
 
     @property
-    def content(self):
-        return self._content
+    def author(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM authors WHERE id =?", (self._author_id,))
+        author_row = cursor.fetchone()
+        conn.close()
+        return Author(author_row['name']) if author_row else None
 
-    @content.setter
-    def content(self, value):
-        if isinstance(value, str):
-            self._content = value
-        else:
-            raise ValueError("Content must be a string")
-
-    @classmethod
-    def create_article(cls, cursor, title, content, author_id, magazine_id):
-        cursor.execute("INSERT INTO articles (title, content, author_id, magazine_id) VALUES (?, ?, ?, ?)", (title, content, author_id, magazine_id))
-        article_id = cursor.lastrowid
-        return cls(article_id, title, content, author_id, magazine_id)
-
-    @classmethod
-    def get_titles(cls, cursor):
-        cursor.execute("SELECT title FROM articles")
-        titles = cursor.fetchall()
-        return [title[0] for title in titles] if titles else None
-
-    def get_author(self, cursor):
-        cursor.execute("SELECT name FROM authors WHERE id = ?", (self._author_id,))
-        author_name = cursor.fetchone()
-        return author_name[0] if author_name else None
-
-    def get_magazine(self, cursor):
-        cursor.execute("SELECT name FROM magazines WHERE id = ?", (self._magazine_id,))
-        magazine_name = cursor.fetchone()
-        return magazine_name[0] if magazine_name else None
-
-    def __repr__(self):
-        return f"Article(id={self._id}, title='{self._title}', content='{self._content}', author_id={self._author_id}, magazine_id={self._magazine_id})"
+    @property
+    def magazine(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM magazines WHERE id =?", (self._magazine_id,))
+        magazine_row = cursor.fetchone()
+        conn.close()
+        return Magazine(magazine_row['name'], magazine_row['category']) if magazine_row else None

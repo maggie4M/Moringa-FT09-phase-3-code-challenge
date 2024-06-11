@@ -1,3 +1,4 @@
+from .author import Author
 class Magazine:
     def __init__(self, id, name, category):
         self.id = id
@@ -71,7 +72,4 @@ class Magazine:
             HAVING article_count > 2
         """, (self._id,))
         authors_data = cursor.fetchall()
-        return authors_data if authors_data else None
-
-    def __repr__(self):
-        return f"Magazine(id={self._id}, name='{self._name}', category='{self._category}')"
+        return [Author(row['name']) for row in authors_data] if authors_data else None
