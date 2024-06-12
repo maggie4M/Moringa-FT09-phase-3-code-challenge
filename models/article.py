@@ -7,7 +7,7 @@ class Article:
         self.content = content
         self.author_id = author_id
         self.magazine_id = magazine_id
-        self._create_article()
+        
 
     def __repr__(self):
         return f'<Article {self.title}>'

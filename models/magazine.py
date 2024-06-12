@@ -5,7 +5,6 @@ class Magazine:
         self.id = id
         self.name = name
         self.category = category
-        self._create_magazine()
 
     def __repr__(self):
         return f'<Magazine {self.name}>'

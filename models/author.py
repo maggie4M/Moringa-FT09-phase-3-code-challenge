@@ -4,7 +4,7 @@ class Author:
     def __init__(self, id, name):
         self.id = id
         self.name = name
-        self._create_author()
+        
 
     def __repr__(self):
         return f'<Author {self.name}>'
