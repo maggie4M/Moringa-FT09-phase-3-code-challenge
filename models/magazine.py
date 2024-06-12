@@ -1,13 +1,33 @@
-from .author import Author
+from database.connection import get_db_connection
+
 class Magazine:
     def __init__(self, id, name, category):
         self.id = id
         self.name = name
         self.category = category
+        self._create_magazine()
+
+    def __repr__(self):
+        return f'<Magazine {self.name}>'
+
+    def _create_magazine(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO magazines (id, name, category) VALUES (?, ?, ?)
+        ''', (self.id, self.name, self.category))
+        conn.commit()
+        conn.close()
 
     @property
     def id(self):
         return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, int):
+            raise TypeError("ID must be an integer")
+        self._id = value
 
     @property
     def name(self):
@@ -15,10 +35,9 @@ class Magazine:
 
     @name.setter
     def name(self, value):
-        if isinstance(value, str) and 2 <= len(value) <= 16:
-            self._name = value
-        else:
+        if not isinstance(value, str) or not (2 <= len(value) <= 16):
             raise ValueError("Name must be a string between 2 and 16 characters")
+        self._name = value
 
     @property
     def category(self):
@@ -26,50 +45,24 @@ class Magazine:
 
     @category.setter
     def category(self, value):
-        if isinstance(value, str) and len(value) > 0:
-            self._category = value
-        else:
+        if not isinstance(value, str) or len(value) == 0:
             raise ValueError("Category must be a non-empty string")
+        self._category = value
 
-    def create_magazine(self, cursor):
-        cursor.execute("INSERT INTO magazines (name, category) VALUES (?, ?)", (self._name, self._category))
-        self._id = cursor.lastrowid
-        return cursor
+    def article_titles(self, articles):
+        return [article.title for article in articles if article.magazine_id == self.id]
 
-    @classmethod
-    def get_all_magazines(cls, cursor):
-        cursor.execute("SELECT * FROM magazines")
-        all_magazines = cursor.fetchall()
-        return [cls(magazine_data[0], magazine_data[1], magazine_data[2]) for magazine_data in all_magazines]
+    def contributors(self, articles, authors):
+        author_ids = {article.author_id for article in articles if article.magazine_id == self.id}
+        return [author.id for author in authors if author.id in author_ids]
 
-    def articles(self, cursor):
-        cursor.execute("SELECT * FROM articles WHERE magazine_id = ?", (self._id,))
-        articles_data = cursor.fetchall()
-        return articles_data
 
-    def contributors(self, cursor):
-        cursor.execute("""
-            SELECT authors.*
-            FROM authors
-            JOIN articles ON authors.id = articles.author_id
-            WHERE articles.magazine_id = ?
-        """, (self._id,))
-        contributors_data = cursor.fetchall()
-        return contributors_data
-
-    def article_titles(self, cursor):
-        cursor.execute("SELECT title FROM articles WHERE magazine_id = ?", (self._id,))
-        titles = [row[0] for row in cursor.fetchall()]
-        return titles if titles else None
-
-    def contributing_authors(self, cursor):
-        cursor.execute("""
-            SELECT authors.*, COUNT(*) AS article_count
-            FROM authors
-            JOIN articles ON authors.id = articles.author_id
-            WHERE articles.magazine_id = ?
-            GROUP BY authors.id
-            HAVING article_count > 2
-        """, (self._id,))
-        authors_data = cursor.fetchall()
-        return [Author(row['name']) for row in authors_data] if authors_data else None
+    def contributing_authors(self, articles, authors):
+        author_article_counts = {}
+        for article in articles:
+            if article.magazine_id == self.id:
+                if article.author_id in author_article_counts:
+                    author_article_counts[article.author_id] += 1
+                else:
+                    author_article_counts[article.author_id] = 1
+        return [author.id for author in authors if author_article_counts.get(author.id, 0) > 2]

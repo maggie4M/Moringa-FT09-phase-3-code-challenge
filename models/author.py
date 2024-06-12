@@ -1,11 +1,32 @@
+from database.connection import get_db_connection
+
 class Author:
     def __init__(self, id, name):
         self.id = id
         self.name = name
+        self._create_author()
+
+    def __repr__(self):
+        return f'<Author {self.name}>'
+
+    def _create_author(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO authors (id, name) VALUES (?, ?)
+        ''', (self.id, self.name))
+        conn.commit()
+        conn.close()
 
     @property
     def id(self):
         return self._id
+
+    @id.setter
+    def id(self, value):
+        if not isinstance(value, int):
+            raise TypeError("ID integer")
+        self._id = value
 
     @property
     def name(self):
@@ -13,38 +34,13 @@ class Author:
 
     @name.setter
     def name(self, value):
-        if not isinstance(value, str):
-            raise TypeError("Name must be a string.")
-        if len(value) == 0:
-            raise ValueError("Name must not be empty.")
-        if hasattr(self, '_name'):
-            raise AttributeError("Name cannot be changed after instantiation.")
+        if not isinstance(value, str) or len(value) == 0:
+            raise ValueError("Name non-empty string")
         self._name = value
 
-    def create_author(self, cursor):
-        cursor.execute("INSERT INTO authors (name) VALUES (?)", (self._name,))
-        self._id = cursor.lastrowid
-
-    @classmethod
-    def get_all_authors(cls, cursor):
-        cursor.execute("SELECT * FROM authors")
-        authors_data = cursor.fetchall()
-        return [cls(id=row[0], name=row[1]) for row in authors_data]
-
-    def articles(self, cursor):
-        cursor.execute("SELECT * FROM articles WHERE author_id = ?", (self._id,))
-        articles_data = cursor.fetchall()
-        return articles_data
-
-    def magazines(self, cursor):
-        cursor.execute("""
-            SELECT magazines.*
-            FROM magazines
-            JOIN articles ON magazines.id = articles.magazine_id
-            WHERE articles.author_id = ?
-        """, (self._id,))
-        magazines_data = cursor.fetchall()
-        return magazines_data
-
-    def __repr__(self):
-        return f"Author(id={self._id}, name='{self._name}')"
+    def articles(self, articles):
+        return [article for article in articles if article.author_id == self.id]
+    
+    def magazines(self, articles, magazines):
+        magazine_ids = {article.magazine_id for article in articles if article.author_id == self.id}
+        return [magazine.id for magazine in magazines if magazine.id in magazine_ids]
